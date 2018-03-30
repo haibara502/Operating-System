@@ -19,7 +19,6 @@
 #include <linux/kernel.h>	// included for KERN_INFO
 #include <linux/init.h>		// included for __init and __exit macros
 
-
 static int __init my_module_init(void)
 {
     printk(KERN_INFO "LOADING my-module, which was written by Qinyun.\n");
