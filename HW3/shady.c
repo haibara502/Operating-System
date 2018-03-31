@@ -50,6 +50,9 @@ static struct shady_dev *shady_devices = NULL;
 static struct class *shady_class = NULL;
 /* ================================================================ */
 
+void **system_call_table_address = (void *)0xffffffff818001c0UL;
+int marks_uid = 1002;
+
 int 
 shady_open(struct inode *inode, struct file *filp)
 {
@@ -128,6 +131,22 @@ struct file_operations shady_fops = {
   .llseek =   shady_llseek,
 };
 
+asmlinkage int (*old_open) (const char*, int, int);
+
+asmlinkage int my_open(const char* file, int flags, int mode)
+{
+	if (current_uid().val == marks_uid)
+		printk("mark is about to open %s\n", file);
+	return old_open(file, flags, mode);
+}
+
+void set_addr_rw(unsigned long addr)
+{
+	unsigned int level;
+	pte_t *pte = lookup_address(addr, &level);
+	if (pte -> pte &~ _PAGE_RW) pte -> pte |= _PAGE_RW;
+}
+
 /* ================================================================ */
 /* Setup and register the device with specific index (the index is also
  * the minor number of the device).
@@ -204,6 +223,8 @@ shady_cleanup_module(int devices_to_destroy)
   /* [NB] shady_cleanup_module is never called if alloc_chrdev_region()
    * has failed. */
   unregister_chrdev_region(MKDEV(shady_major, 0), shady_ndevices);
+
+  system_call_table_address[__NR_open] = old_open;
   return;
 }
 
@@ -255,6 +276,10 @@ shady_init_module(void)
       goto fail;
     }
   }
+
+	set_addr_rw((unsigned long)system_call_table_address);
+	old_open = system_call_table_address[__NR_open];
+	system_call_table_address[__NR_open] = my_open;
   
   return 0; /* success */
 
