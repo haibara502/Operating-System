@@ -1,0 +1,38 @@
+\documentclass{article}
+
+\title{Homework2}
+\author{Qinyun Song}
+\date{}
+
+\begin{document}
+    \maketitle
+
+    \section{6.13}
+	\begin{description}
+    	\item [Each Processing core has its own run queue]
+	    For this case, the advantage is that, each core can store their data seperately. They don't need to claim and cooperate with other cores to have the control to write or read the data. Also, the scheduler is assigned to each core. So for each core, they can arrange the tasks themselves so for each core, the computation could be much more efficient. This scheme doesn't require the access control since each queue is private for each core.
+	\item [Single run queue is shared by all processing cores]
+	    For this case, all cores need to wait in a queue to get the permition to access the data. And the single queue need to have some protocal such that each core cannot access the data belonging to other cores. And when each core waiting in the queue, it is less efficient. Because when one thread in one core is ready, it may still need to wait for the queue so that it can run on the core.
+	\end{description}
+
+    \section{5.20}
+	\begin{enumerate}
+	\item From the code we can see that, many threads may call these two functions simutaniously. But we need to make sure the variable \emph{number_of_processes} is edited only by one thread once a time.
+	\item Since the race condition focuses on the variable \emph{number_of_processes}, we just need to use the mutex lock to protect it. So for the two functions, each time when it is called, call the \emph{acquire} function to lock the variable. Each time when one thread is going to return the function, call \emph{release} function so other threads can start to process their data.
+	\item No, we couldn't. Because there are multiple times to get access to the variable. We need to make sure it keeps the same the whole time. But if we use the atomic integer, we cannot guarantee that.
+	\end{enumerate}
+
+    \section{10.10}
+	Previously, when we consider the disadvantage of FCFS algorithm, we think that it is effected by the time looking for data or other latencies due to the speed of memory. But since now, we are using SSD, it saves a lot of time on fetching the data. In this case, the FCFS alsorithm may be sufficient enough.
+
+    \section{10.14}
+	For SSD, it is faster than disk. It doesn't need to look for the location of the data and can fetch much quicker. Another advantage is that, it can store more data. Because in practice, it will use much more space it has than the disk.
+	\newline
+	But as for the disadvantage, one must be the price. The price of SSD is much higher than disk. We just need to balance between the price and the speed.
+
+    \section{12.16}
+	For the direct disk blocks, since each block is $8KB$ in size, the whole size is $8 \times 12 = 96 KB$. \newline
+	For the single indirect disk block, its size is $8KB$. But we need the first $4 bytes$ to be the pointer. So the number of available blocks is $2^{13 - 2} = 2^11 = 2048$. So the available space is $2048 \times 8 KB$. \newline
+	Similarly, for the double indirect disk block, the available space is $2048 \times 2048 \times 8 KB$. For the triple indirect disk block, is $2048 \times 2048 \times 2048 \times 8KB$. \newline
+	So the final answer is the sum of above four cases, which results in $64T$.
+\end{document}
