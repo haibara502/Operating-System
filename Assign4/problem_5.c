@@ -13,33 +13,31 @@ volatile int wait_time = 0;
 volatile int *enter;
 volatile int *num;
 
-int max()
+struct spin_lock
 {
-    int ans = 0;
-    for (int i = 0; i < thread_number; ++i)
-	if (num[i] > ans)
-	    ans = num[i];
-    return ans;
+    volatile int enter;
+    volatile int wait;
+} god;
+
+int atomic_xadd(volatile int *ptr)
+{
+    register int val __asm__("eax") = 1;
+    asm volatile("lock xaddl %0, %1" : "+r" (val) : "m" (*ptr) : "memory" );
+    return val;
 }
 
-void unlock(int number)
+//Lock
+void run_spin_lock(struct spin_lock *sl)
 {
-    num[number] = 0;
+    int wait = atomic_xadd(&sl -> wait);
+    while (wait != sl -> enter);
 }
 
-void lock(int number)
+//Unlock
+void run_spin_unlock(struct spin_lock *sl)
 {
-    enter[number] = 1;
-    num[number] = 1 + max();
-    enter[number] = 0;
-
-	for (int j = 0; j < thread_number; ++j)
-	{
-	    while (enter[j]);
-	    while (num[j] != 0 && ((num[j] < num[number] || (num[j] == num[number] && j < number))));
-    }
+    atomic_xadd(&sl -> enter);
 }
-
 
 void *run_thread(void *arg)
 {
@@ -47,11 +45,13 @@ void *run_thread(void *arg)
 
     int id = *data;
     int count = 1;
+
+    //Use spin lock
     while (can)
     {
 	++count;
 
-	lock(id);
+	run_spin_lock(&god);
 	assert(in_cs == 0);
 	++in_cs;
 	assert(in_cs == 1);
@@ -60,7 +60,7 @@ void *run_thread(void *arg)
 	++in_cs;
 	assert(in_cs == 3);
 	in_cs = 0;
-	unlock(id);
+	run_spin_unlock(&god);
     }
 
     printf("Thread %d enter %d times.\n", id, count);
@@ -72,6 +72,7 @@ void *main_function()
     pthread_t threads[thread_number];
     int thread_num[thread_number];
 
+    //Prepare to store the data
     enter = malloc(thread_number * sizeof(*enter));
     num = malloc(thread_number * sizeof(*index));
     for (int i = 0; i < thread_number; ++i)
@@ -80,6 +81,7 @@ void *main_function()
 	num[i] = 0;
     }
 
+    //Create the threads
     for (int i = 0; i < thread_number; ++i)
     {
 	thread_num[i] = i;
@@ -101,6 +103,7 @@ void *main_function()
 
 int main(int argc, char *argv[]) 
 {
+    // Check input valid
     if (argc != 3)
     {
 	fprintf(stderr, "The input argument is not valid. You should input the number of thread and the execution time.\n");
@@ -118,6 +121,7 @@ int main(int argc, char *argv[])
 
     can = 1;
 
+    // Main thread
     pthread_t main_thread;
 
     int status = pthread_create(&main_thread, NULL, main_function, NULL);

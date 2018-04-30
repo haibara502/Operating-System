@@ -33,10 +33,12 @@ void lock(int number)
     num[number] = 1 + max();
     enter[number] = 0;
 
-	for (int j = 0; j < thread_number; ++j)
-	{
-	    while (enter[j]);
-	    while (num[j] != 0 && ((num[j] < num[number] || (num[j] == num[number] && j < number))));
+    for (int j = 0; j < thread_number; ++j)
+    {
+	while (enter[j])
+	    sched_yield();
+	while (num[j] != 0 && ((num[j] < num[number] || (num[j] == num[number] && j < number))))
+	    sched_yield();
     }
 }
 

@@ -13,33 +13,29 @@ volatile int wait_time = 0;
 volatile int *enter;
 volatile int *num;
 
-int max()
+struct spin_lock
 {
-    int ans = 0;
-    for (int i = 0; i < thread_number; ++i)
-	if (num[i] > ans)
-	    ans = num[i];
-    return ans;
+    volatile int num;
+} god;
+
+int atomic_cmpxchg(volatile int *ptr, int old, int new)
+{
+    int ret;
+    asm volatile ("lock cmpxchgl %2, %1" : "=a" (ret), "+m" (*ptr) : "r" (new), "0" (old) : "memory");
+    return ret;
 }
 
-void unlock(int number)
+//Lock
+void run_spin_lock(struct spin_lock *sl)
 {
-    num[number] = 0;
+    while (atomic_cmpxchg(&sl -> num, 0, 1));
 }
 
-void lock(int number)
+//Unlock
+void run_spin_unlock(struct spin_lock *sl)
 {
-    enter[number] = 1;
-    num[number] = 1 + max();
-    enter[number] = 0;
-
-	for (int j = 0; j < thread_number; ++j)
-	{
-	    while (enter[j]);
-	    while (num[j] != 0 && ((num[j] < num[number] || (num[j] == num[number] && j < number))));
-    }
+    sl -> num = 0;
 }
-
 
 void *run_thread(void *arg)
 {
@@ -51,7 +47,8 @@ void *run_thread(void *arg)
     {
 	++count;
 
-	lock(id);
+	//Lock and update
+	run_spin_lock(&god);
 	assert(in_cs == 0);
 	++in_cs;
 	assert(in_cs == 1);
@@ -60,7 +57,8 @@ void *run_thread(void *arg)
 	++in_cs;
 	assert(in_cs == 3);
 	in_cs = 0;
-	unlock(id);
+	//Unlock
+	run_spin_unlock(&god);
     }
 
     printf("Thread %d enter %d times.\n", id, count);
@@ -80,6 +78,7 @@ void *main_function()
 	num[i] = 0;
     }
 
+    //Create threads
     for (int i = 0; i < thread_number; ++i)
     {
 	thread_num[i] = i;
@@ -120,6 +119,7 @@ int main(int argc, char *argv[])
 
     pthread_t main_thread;
 
+    //Create main thread
     int status = pthread_create(&main_thread, NULL, main_function, NULL);
     if (status != 0)
     {

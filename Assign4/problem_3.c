@@ -13,6 +13,11 @@ volatile int wait_time = 0;
 volatile int *enter;
 volatile int *num;
 
+void mfence(void)
+{
+    asm volatile ("mfence" : : : "memory");
+}
+
 int max()
 {
     int ans = 0;
@@ -30,13 +35,16 @@ void unlock(int number)
 void lock(int number)
 {
     enter[number] = 1;
+    mfence();
     num[number] = 1 + max();
+    mfence();
     enter[number] = 0;
+    mfence();
 
-	for (int j = 0; j < thread_number; ++j)
-	{
-	    while (enter[j]);
-	    while (num[j] != 0 && ((num[j] < num[number] || (num[j] == num[number] && j < number))));
+    for (int j = 0; j < thread_number; ++j)
+    {
+	while (enter[j]);
+	while (num[j] != 0 && ((num[j] < num[number] || (num[j] == num[number] && j < number))));
     }
 }
 
